@@ -1,0 +1,26 @@
+apply plugin: 'scala'
+apply plugin: 'application'
+mainClassName = "com.wiiaam.MarkovTest"
+
+repositories {
+    mavenCentral()
+}
+
+task fatJar(type: Jar) {
+    manifest {
+        attributes 'Implementation-Title': 'Markov Text Generator',
+                'Implementation-Version': 1,
+                'Main-Class': 'com.wiiaam.MarkovTest'
+    }
+    baseName = project.name
+    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
+}
+
+dependencies {
+  compile 'org.scala-lang:scala-library:2.11.6'
+    compile 'org.xerial:sqlite-jdbc:3.20.0'
+  compile fileTree(dir: 'lib', include: '*.jar')
+}
+
+sourceSets.main.scala.srcDirs = ['./src/']

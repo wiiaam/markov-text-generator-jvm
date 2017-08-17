@@ -1,0 +1,30 @@
+
+# IntelliJ project files
+.idea
+*.iml
+# Scala
+*.class
+*.log
+out/
+
+# gradle
+.gradle
+/build/
+!gradle-wrapper.jar
+.gradletasknamecache
+
+# Scala-IDE specific
+.scala_dependencies
+.worksheet
+
+# Configs
+src/main/resources/configs/*
+!src/main/resources/configs/example.json
+
+src/main/scala/configs/*
+!src/main/scala/configs/example.json
+
+src/main/scala/META-INF/
+
+#Test
+src/main/scala/Test.scala
