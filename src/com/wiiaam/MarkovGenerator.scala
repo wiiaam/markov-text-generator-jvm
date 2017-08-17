@@ -158,8 +158,39 @@ class MarkovGenerator(private var dbUrl: String, private val table: String = "ma
   def createSentence(): String ={
     var finished = false
     val starters = getAllStarters
-    if(getAllStarters.length < 1) return "" // TODO throw an error here
+    if(starters.length < 1) return "" // TODO throw an error here
     var sentence = starters(Random.nextInt(getAllStarters.length)).split("\\s+")
+    var i = 0
+    while(!finished){
+      val prevWordPair = sentence(i) + " " + sentence(i+1)
+
+      if(hasChainedWords(prevWordPair)){
+        val possibleWords = getChainedWordsFromPair(prevWordPair)
+        val nextWord = possibleWords(Random.nextInt(possibleWords.length))
+        sentence = sentence :+ nextWord
+      }
+      else{
+        finished = true
+      }
+
+
+      if(i > 20) finished = true
+
+
+      i = i+1
+    }
+    sentence.deep.mkString(" ")
+  }
+
+  def createSentenceUsingWord(word: String): String ={
+    val split = word.split("\\s+")
+    val triggerWord = split(Random.nextInt(split.length))
+    var finished = false
+    var starters = getAllStarters
+    val filteredStarters = starters.filter(_.split("\\s+").contains(triggerWord))
+    if(filteredStarters.length > 0) starters = filteredStarters
+    if(starters.length < 1) return "" // TODO throw an error here
+    var sentence = starters(Random.nextInt(starters.length)).split("\\s+")
     var i = 0
     while(!finished){
       val prevWordPair = sentence(i) + " " + sentence(i+1)
