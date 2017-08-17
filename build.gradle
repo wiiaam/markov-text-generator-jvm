@@ -9,8 +9,7 @@ repositories {
 task fatJar(type: Jar) {
     manifest {
         attributes 'Implementation-Title': 'Markov Text Generator',
-                'Implementation-Version': 1,
-                'Main-Class': 'com.wiiaam.MarkovTest'
+                'Implementation-Version': 1
     }
     baseName = project.name
     from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }

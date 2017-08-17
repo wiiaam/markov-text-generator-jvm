@@ -17,14 +17,5 @@ out/
 .scala_dependencies
 .worksheet
 
-# Configs
-src/main/resources/configs/*
-!src/main/resources/configs/example.json
-
-src/main/scala/configs/*
-!src/main/scala/configs/example.json
-
-src/main/scala/META-INF/
-
 #Test
-src/main/scala/Test.scala
+src/com/wiiaam/MarkovTest.scala
