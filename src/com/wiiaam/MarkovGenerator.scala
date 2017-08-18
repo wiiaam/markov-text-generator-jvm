@@ -10,16 +10,16 @@ import scala.util.Random
   * @param table Table name
   */
 @throws(classOf[SQLException])
-class MarkovGenerator(private var dbUrl: String, private val table: String = "markov"){
+class MarkovGenerator(private var dbUrl: String, private val table: String = "markov") {
 
 
   private var connection: Connection = _
 
-  if(!dbUrl.startsWith("jdbc:sqlite:")){
+  if (!dbUrl.startsWith("jdbc:sqlite:")) {
     dbUrl = "jdbc:sqlite:" + dbUrl
   }
 
-  try{
+  try {
     connection = DriverManager.getConnection(dbUrl)
     val sql = s"CREATE TABLE IF NOT EXISTS $table(" +
       " key TEXT PRIMARY KEY," +
@@ -28,7 +28,7 @@ class MarkovGenerator(private var dbUrl: String, private val table: String = "ma
     val stmt = connection.createStatement()
     stmt.execute(sql)
   }
-  catch{
+  catch {
     case e: SQLException =>
       throw e
   }
@@ -36,7 +36,7 @@ class MarkovGenerator(private var dbUrl: String, private val table: String = "ma
   /**
     * Resets the sql table
     */
-  def resetTable(): Unit ={
+  def resetTable(): Unit = {
     var sql = s"DROP TABLE IF EXISTS $table"
     var stmt = connection.createStatement()
     stmt.execute(sql)
@@ -52,10 +52,10 @@ class MarkovGenerator(private var dbUrl: String, private val table: String = "ma
   /**
     * Prints the sql table
     */
-  def printTable(): Unit ={
+  def printTable(): Unit = {
     val sql = s"SELECT key, value, starter FROM $table"
     val rs = connection.createStatement().executeQuery(sql)
-    while (rs.next()){
+    while (rs.next()) {
       println(rs.getString(1) + " === " + rs.getString(2) + " === " + rs.getBoolean(3))
     }
   }
@@ -77,19 +77,49 @@ class MarkovGenerator(private var dbUrl: String, private val table: String = "ma
     rs.getString("value").split("\\s+")
   }
 
-  def getAllStarters: Array[String] = {
+  private def getWordPairsFromChainedWord(word: String): Array[(String, Boolean)] = {
+    val sql = s"SELECT key, value, starter FROM $table"
+    val pstmt = connection.prepareStatement(sql)
+    val rs = pstmt.executeQuery()
+    var wordPairResults = Array[(String, Boolean)]()
+    while (rs.next()) {
+      val chainedWords = rs.getString(2)
+      if (chainedWords.split("\\s+").contains(word)) wordPairResults = wordPairResults :+ (rs.getString(1), rs.getBoolean(3))
+    }
+    wordPairResults
+
+  }
+
+  private def getReverseChainedWordsFromPair(wordPair: String): Array[(String, Boolean)] = {
+    val sql = s"SELECT key, value, starter FROM $table"
+    val pstmt = connection.prepareStatement(sql)
+    val rs = pstmt.executeQuery()
+    var wordPairResults = Array[(String, Boolean)]()
+    while (rs.next()) {
+      val chainedWords = rs.getString(2)
+      val wordPairResult = rs.getString(1)
+      val split = wordPair.split("\\s+")
+      val wordPairTuple = (split(0), split(1))
+      if (chainedWords.split("\\s+").contains(wordPairTuple._2) && wordPairResult.split("\\s+")(1) == wordPairTuple._1)
+        wordPairResults = wordPairResults :+ (wordPairResult.split("\\s+")(0), rs.getBoolean(3))
+    }
+    wordPairResults
+
+  }
+
+  private def getAllStarters: Array[String] = {
     val sql = s"SELECT key, starter FROM $table WHERE starter = ?"
     val pstmt = connection.prepareStatement(sql)
     pstmt.setBoolean(1, true)
     val rs = pstmt.executeQuery()
     var pairs = Array[String]()
-    while (rs.next()){
+    while (rs.next()) {
       pairs = pairs :+ rs.getString(1)
     }
     pairs
   }
 
-   def isStarter(wordPair: String): Boolean = {
+  private def isStarter(wordPair: String): Boolean = {
     val sql = s"SELECT key, starter FROM $table WHERE key = ?"
     val pstmt = connection.prepareStatement(sql)
     pstmt.setString(1, wordPair)
@@ -97,8 +127,8 @@ class MarkovGenerator(private var dbUrl: String, private val table: String = "ma
     rs.getBoolean("starter")
   }
 
-  private def setAsStarter(wordPair: String): Unit ={
-    if(!hasChainedWords(wordPair)) return
+  private def setAsStarter(wordPair: String): Unit = {
+    if (!hasChainedWords(wordPair)) return
     val sql = s"UPDATE $table SET starter = ? WHERE key = ? "
     val pstmt = connection.prepareStatement(sql)
     pstmt.setBoolean(1, true)
@@ -106,22 +136,22 @@ class MarkovGenerator(private var dbUrl: String, private val table: String = "ma
     pstmt.executeUpdate()
   }
 
-  private def chainWordToPair(wordPair: String, word: String): Unit ={
+  private def chainWordToPair(wordPair: String, word: String): Unit = {
     val hasChained = hasChainedWords(wordPair)
-    val sql = if(hasChained){
+    val sql = if (hasChained) {
       s"UPDATE $table SET value = ? WHERE key = ? "
     }
-    else{
+    else {
       s"INSERT INTO $table(value, key) VALUES(?,?)"
     }
 
     var newWords = word
 
-    if(hasChained){
+    if (hasChained) {
       val chained = getChainedWordsFromPair(wordPair)
-      if(chained.contains(word)) return
-      for(chainedWord <- chained){
-        newWords = newWords +  " " + chainedWord
+      if (chained.contains(word)) return
+      for (chainedWord <- chained) {
+        newWords = newWords + " " + chainedWord
       }
 
     }
@@ -132,18 +162,17 @@ class MarkovGenerator(private var dbUrl: String, private val table: String = "ma
   }
 
 
-
   /**
     * Parses a sentence to be included in the chain
     */
-  def parseSentence(sentence: String): Unit ={
+  def parseSentence(sentence: String): Unit = {
     val split = sentence.split("\\s+")
-    if(split.length > 2){
-      for(i <- split.indices){
-        if(i < split.length - 2){
-          val words = Array(split(i), split(i+1), split(i+2))
-          val wordPair = split(i) + " " + split(i+1)
-          if(words.distinct.length == words.length) chainWordToPair(wordPair, split(i+2))
+    if (split.length > 2) {
+      for (i <- split.indices) {
+        if (i < split.length - 2) {
+          val words = Array(split(i), split(i + 1), split(i + 2))
+          val wordPair = split(i) + " " + split(i + 1)
+          if (words.distinct.length == words.length) chainWordToPair(wordPair, split(i + 2))
         }
       }
       val starter = split(0) + " " + split(1)
@@ -155,60 +184,71 @@ class MarkovGenerator(private var dbUrl: String, private val table: String = "ma
     *
     * @return sentence
     */
-  def createSentence(): String ={
+  def createSentence(): String = {
     var finished = false
     val starters = getAllStarters
-    if(starters.length < 1) return "" // TODO throw an error here
+    if (starters.length < 1) return "" // TODO throw an error here
     var sentence = starters(Random.nextInt(getAllStarters.length)).split("\\s+")
     var i = 0
-    while(!finished){
-      val prevWordPair = sentence(i) + " " + sentence(i+1)
+    while (!finished) {
+      val prevWordPair = sentence(i) + " " + sentence(i + 1)
 
-      if(hasChainedWords(prevWordPair)){
+      if (hasChainedWords(prevWordPair)) {
         val possibleWords = getChainedWordsFromPair(prevWordPair)
         val nextWord = possibleWords(Random.nextInt(possibleWords.length))
         sentence = sentence :+ nextWord
       }
-      else{
+      else {
         finished = true
       }
 
 
-      if(i > 20) finished = true
+      if (i > 20) finished = true
 
 
-      i = i+1
+      i = i + 1
     }
     sentence.deep.mkString(" ")
   }
 
-  def createSentenceUsingWord(word: String): String ={
+  def createSentenceUsingWord(word: String): String = {
     val split = word.split("\\s+")
     val triggerWord = split(Random.nextInt(split.length))
     var finished = false
-    var starters = getAllStarters
-    val filteredStarters = starters.filter(_.split("\\s+").contains(triggerWord))
-    if(filteredStarters.length > 0) starters = filteredStarters
-    if(starters.length < 1) return "" // TODO throw an error here
-    var sentence = starters(Random.nextInt(starters.length)).split("\\s+")
-    var i = 0
-    while(!finished){
-      val prevWordPair = sentence(i) + " " + sentence(i+1)
+    var wordPairResults = getWordPairsFromChainedWord(triggerWord)
+    if (wordPairResults.length == 0) return createSentence()
 
-      if(hasChainedWords(prevWordPair)){
+    val initialWordPair = wordPairResults(Random.nextInt(wordPairResults.length))
+    var sentence = initialWordPair._1.split("\\s+") :+ triggerWord
+    if (!initialWordPair._2) { // Is not a starter
+      while (!finished) {
+        val searchPair = sentence(0) + " " + sentence(1)
+        wordPairResults = getReverseChainedWordsFromPair(searchPair)
+        val randomWordPair = wordPairResults(Random.nextInt(wordPairResults.length))
+        sentence = randomWordPair._1.split("\\s+") ++ sentence
+        if (randomWordPair._2) finished = true
+      }
+    }
+
+    var i = sentence.length - 2
+    finished = false
+    while (!finished) {
+      val prevWordPair = sentence(i) + " " + sentence(i + 1)
+
+      if (hasChainedWords(prevWordPair)) {
         val possibleWords = getChainedWordsFromPair(prevWordPair)
         val nextWord = possibleWords(Random.nextInt(possibleWords.length))
         sentence = sentence :+ nextWord
       }
-      else{
+      else {
         finished = true
       }
 
 
-      if(i > 20) finished = true
+      if (i > 20) finished = true
 
 
-      i = i+1
+      i = i + 1
     }
     sentence.deep.mkString(" ")
   }

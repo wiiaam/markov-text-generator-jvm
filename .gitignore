@@ -18,5 +18,5 @@ out/
 .worksheet
 
 #Test
-src/com/wiiaam/MarkovTest.scala
+MarkovTest.scala
 
