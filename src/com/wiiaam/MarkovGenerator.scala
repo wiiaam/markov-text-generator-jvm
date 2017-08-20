@@ -240,7 +240,7 @@ class MarkovGenerator(private var dbUrl: String, private val table: String = "ma
       }
     }
     else{
-      starters = starters.filter(_.split("\\s+").contains(word))
+      starters = starters.filter(_.split("\\s+").contains(triggerWord))
     }
     var wordPairResults = getWordPairsFromChainedWord(triggerWord, ignorePunctuation)
     for(starter <- starters){
@@ -257,8 +257,8 @@ class MarkovGenerator(private var dbUrl: String, private val table: String = "ma
         initialWordPairSplitFiltered(i) = initialWordPairSplitFiltered(i).replaceAll("[.,\\/#!$%\\^&\\*;:{}=\\-_`~()]", "")
       }
     }
-    var sentence = if(initialWordPairSplitFiltered.contains(word)) initialWordPairSplit
-    else initialWordPairSplit :+ word
+    var sentence = if(initialWordPairSplitFiltered.contains(triggerWord)) initialWordPairSplit
+    else initialWordPairSplit :+ triggerWord
     if (!initialWordPair._2) { // Is not a starter
       while (!finished) {
         val searchPair = sentence(0) + " " + sentence(1)
