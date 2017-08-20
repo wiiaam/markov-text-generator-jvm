@@ -77,14 +77,27 @@ class MarkovGenerator(private var dbUrl: String, private val table: String = "ma
     rs.getString("value").split("\\s+")
   }
 
-  private def getWordPairsFromChainedWord(word: String): Array[(String, Boolean)] = {
+  private def getWordPairsFromChainedWord(word: String,
+                                          ignorePunctuation: Boolean = false): Array[(String, Boolean)] = {
     val sql = s"SELECT key, value, starter FROM $table"
     val pstmt = connection.prepareStatement(sql)
     val rs = pstmt.executeQuery()
     var wordPairResults = Array[(String, Boolean)]()
     while (rs.next()) {
       val chainedWords = rs.getString(2)
-      if (chainedWords.split("\\s+").contains(word)) wordPairResults = wordPairResults :+ (rs.getString(1), rs.getBoolean(3))
+      if(ignorePunctuation){
+        val split = chainedWords.split("\\s+")
+        for(i <- split.indices){
+          split(i) = split(i).replaceAll("[.,\\/#!$%\\^&\\*;:{}=\\-_`~()]", "")
+        }
+        if (split.contains(word))
+          wordPairResults = wordPairResults :+ (rs.getString(1), rs.getBoolean(3))
+      }
+      else{
+        if (chainedWords.split("\\s+").contains(word))
+          wordPairResults = wordPairResults :+ (rs.getString(1), rs.getBoolean(3))
+      }
+
     }
     wordPairResults
 
@@ -211,15 +224,41 @@ class MarkovGenerator(private var dbUrl: String, private val table: String = "ma
     sentence.deep.mkString(" ")
   }
 
-  def createSentenceUsingWord(word: String): String = {
+  def createSentenceUsingWord(word: String, ignorePunctuation: Boolean = false): String = {
     val split = word.split("\\s+")
     val triggerWord = split(Random.nextInt(split.length))
     var finished = false
-    var wordPairResults = getWordPairsFromChainedWord(triggerWord)
+    var starters = getAllStarters
+    if(ignorePunctuation){
+      starters = starters.filter{
+        s: String =>
+          val split = s.split("\\s+")
+          for(i <- split.indices){
+            split(i) = split(i).replaceAll("[.,\\/#!$%\\^&\\*;:{}=\\-_`~()]", "")
+          }
+          if(split.contains(word)) true else false
+      }
+    }
+    else{
+      starters = starters.filter(_.split("\\s+").contains(word))
+    }
+    var wordPairResults = getWordPairsFromChainedWord(triggerWord, ignorePunctuation)
+    for(starter <- starters){
+      wordPairResults = wordPairResults :+ (starter, true)
+    }
     if (wordPairResults.length == 0) return createSentence()
 
     val initialWordPair = wordPairResults(Random.nextInt(wordPairResults.length))
-    var sentence = initialWordPair._1.split("\\s+") :+ triggerWord
+
+    val initialWordPairSplit = initialWordPair._1.split("\\s+")
+    val initialWordPairSplitFiltered = initialWordPairSplit.clone()
+    if(ignorePunctuation){
+      for(i <- initialWordPairSplitFiltered.indices){
+        initialWordPairSplitFiltered(i) = initialWordPairSplitFiltered(i).replaceAll("[.,\\/#!$%\\^&\\*;:{}=\\-_`~()]", "")
+      }
+    }
+    var sentence = if(initialWordPairSplitFiltered.contains(word)) initialWordPairSplit
+    else initialWordPairSplit :+ word
     if (!initialWordPair._2) { // Is not a starter
       while (!finished) {
         val searchPair = sentence(0) + " " + sentence(1)
